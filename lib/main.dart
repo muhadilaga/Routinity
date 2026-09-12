@@ -8,6 +8,7 @@ import 'services/activity_store.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/activity_editor.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -189,8 +190,27 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.store.refreshStatuses();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +224,7 @@ class _HomeShellState extends State<HomeShell> {
       body: SafeArea(child: pages[_index]),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('addActivityButton'),
-        onPressed: () => showAddActivity(context, widget.store),
+        onPressed: () => showActivityEditor(context, widget.store),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Kegiatan'),
       ),
@@ -382,7 +402,9 @@ class ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = activity.status == ActivityStatus.completed;
     final skipped = activity.status == ActivityStatus.skipped;
+    final missed = activity.status == ActivityStatus.missed;
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -425,10 +447,10 @@ class ActivityCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    '${activity.category} • ${_repeatLabel(activity.repeatRule)}',
+                    '${activity.category} • ${repeatRuleLabel(activity.repeatRule)}',
                     style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
-                  if (!done && !skipped) ...[
+                  if (!done && !skipped && !missed) ...[
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 7,
@@ -459,27 +481,52 @@ class ActivityCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ] else
+                  ] else ...[
                     Padding(
                       padding: const EdgeInsets.only(top: 9),
                       child: Text(
-                        done ? 'Selesai' : 'Dilewati',
+                        done
+                            ? 'Selesai'
+                            : skipped
+                            ? 'Dilewati'
+                            : 'Terlewat',
                         style: TextStyle(
                           color: done
                               ? Colors.green.shade700
+                              : missed
+                              ? Colors.red.shade700
                               : Colors.orange.shade800,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
+                    if (missed)
+                      TextButton.icon(
+                        onPressed: () =>
+                            showRescheduleDialog(context, store, activity),
+                        icon: const Icon(Icons.event_repeat, size: 18),
+                        label: const Text('Jadwalkan ulang'),
+                      ),
+                  ],
                 ],
               ),
             ),
             PopupMenuButton<String>(
               onSelected: (value) {
-                if (value == 'delete') store.delete(activity);
+                if (value == 'edit') {
+                  showActivityEditor(context, store, activity: activity);
+                } else if (value == 'reschedule') {
+                  showRescheduleDialog(context, store, activity);
+                } else if (value == 'delete') {
+                  store.delete(activity);
+                }
               },
               itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(
+                  value: 'reschedule',
+                  child: Text('Jadwalkan ulang'),
+                ),
                 PopupMenuItem(value: 'delete', child: Text('Hapus')),
               ],
             ),
@@ -541,6 +588,9 @@ class ProgressPage extends StatelessWidget {
       final skipped = store.activities
           .where((e) => e.status == ActivityStatus.skipped)
           .length;
+      final missed = store.activities
+          .where((e) => e.status == ActivityStatus.missed)
+          .length;
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
         children: [
@@ -575,6 +625,13 @@ class ProgressPage extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _Metric(
+            label: 'Terlewat',
+            value: '$missed',
+            icon: Icons.warning_amber_rounded,
+            color: Colors.red,
           ),
           const SizedBox(height: 12),
           _Metric(
@@ -679,7 +736,7 @@ class SettingsPage extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.info_outline),
               title: Text('Tentang Routinity'),
-              subtitle: Text('Versi MVP 1.0.0'),
+              subtitle: Text('Versi 1.1.0'),
             ),
           ],
         ),
@@ -711,211 +768,5 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
-Future<void> showAddActivity(BuildContext context, ActivityStore store) async {
-  final title = TextEditingController();
-  final notes = TextEditingController();
-  var date = DateTime.now();
-  var time = TimeOfDay.now();
-  var duration = 30;
-  var reminder = 10;
-  var category = 'Pribadi';
-  var repeat = RepeatRule.none;
-
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (sheetContext) => StatefulBuilder(
-      builder: (context, setSheetState) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          18,
-          20,
-          MediaQuery.viewInsetsOf(context).bottom + 22,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Tambah kegiatan',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                key: const Key('activityTitleField'),
-                controller: title,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nama kegiatan',
-                  hintText: 'Contoh: Belajar Flutter',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notes,
-                decoration: const InputDecoration(
-                  labelText: 'Catatan (opsional)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          firstDate: DateTime.now().subtract(
-                            const Duration(days: 1),
-                          ),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 730),
-                          ),
-                          initialDate: date,
-                        );
-                        if (picked != null) setSheetState(() => date = picked);
-                      },
-                      icon: const Icon(Icons.calendar_today),
-                      label: Text(DateFormat('d MMM yyyy').format(date)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: time,
-                        );
-                        if (picked != null) setSheetState(() => time = picked);
-                      },
-                      icon: const Icon(Icons.schedule),
-                      label: Text(time.format(context)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: duration,
-                decoration: const InputDecoration(labelText: 'Durasi'),
-                items: const [15, 30, 45, 60, 90, 120]
-                    .map(
-                      (v) =>
-                          DropdownMenuItem(value: v, child: Text('$v menit')),
-                    )
-                    .toList(),
-                onChanged: (v) => setSheetState(() => duration = v ?? 30),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration: const InputDecoration(labelText: 'Kategori'),
-                items:
-                    const ['Pribadi', 'Belajar', 'Kerja', 'Kesehatan', 'Ibadah']
-                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                        .toList(),
-                onChanged: (v) =>
-                    setSheetState(() => category = v ?? 'Pribadi'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: reminder,
-                decoration: const InputDecoration(labelText: 'Pengingat'),
-                items: const [0, 5, 10, 15, 30, 60]
-                    .map(
-                      (v) => DropdownMenuItem(
-                        value: v,
-                        child: Text(
-                          v == 0
-                              ? 'Saat kegiatan dimulai'
-                              : '$v menit sebelumnya',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setSheetState(() => reminder = v ?? 10),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<RepeatRule>(
-                initialValue: repeat,
-                decoration: const InputDecoration(labelText: 'Ulangi'),
-                items: RepeatRule.values
-                    .map(
-                      (v) => DropdownMenuItem(
-                        value: v,
-                        child: Text(_repeatLabel(v)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) =>
-                    setSheetState(() => repeat = v ?? RepeatRule.none),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                key: const Key('saveActivityButton'),
-                onPressed: () async {
-                  if (title.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Nama kegiatan wajib diisi.'),
-                      ),
-                    );
-                    return;
-                  }
-                  final start = DateTime(
-                    date.year,
-                    date.month,
-                    date.day,
-                    time.hour,
-                    time.minute,
-                  );
-                  final activity = Activity(
-                    id: DateTime.now().microsecondsSinceEpoch.toString(),
-                    title: title.text.trim(),
-                    notes: notes.text.trim(),
-                    startAt: start,
-                    durationMinutes: duration,
-                    category: category,
-                    reminderMinutes: reminder,
-                    status: ActivityStatus.scheduled,
-                    repeatRule: repeat,
-                  );
-                  await store.add(activity);
-                  if (context.mounted) Navigator.pop(context);
-                },
-                icon: const Icon(Icons.alarm_add),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Simpan & aktifkan pengingat'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
-
-String _repeatLabel(RepeatRule value) => switch (value) {
-  RepeatRule.none => 'Tidak berulang',
-  RepeatRule.daily => 'Setiap hari',
-  RepeatRule.weekdays => 'Hari kerja',
-  RepeatRule.weekly => 'Setiap minggu',
-};

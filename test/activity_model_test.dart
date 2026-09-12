@@ -11,7 +11,8 @@ void main() {
       category: 'Belajar',
       reminderMinutes: 10,
       status: ActivityStatus.completed,
-      repeatRule: RepeatRule.weekdays,
+      repeatRule: RepeatRule.selectedDays,
+      repeatWeekdays: const [DateTime.monday, DateTime.wednesday],
       notes: 'Bab widget',
     );
 
@@ -19,7 +20,8 @@ void main() {
     expect(decoded.title, activity.title);
     expect(decoded.startAt, activity.startAt);
     expect(decoded.status, ActivityStatus.completed);
-    expect(decoded.repeatRule, RepeatRule.weekdays);
+    expect(decoded.repeatRule, RepeatRule.selectedDays);
+    expect(decoded.repeatWeekdays, [DateTime.monday, DateTime.wednesday]);
     expect(decoded.notes, 'Bab widget');
   });
 }

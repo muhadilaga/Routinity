@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-enum ActivityStatus { scheduled, completed, skipped }
+enum ActivityStatus { scheduled, completed, skipped, missed }
 
-enum RepeatRule { none, daily, weekdays, weekly }
+enum RepeatRule { none, daily, weekdays, weekly, selectedDays }
 
 class Activity {
   const Activity({
@@ -15,6 +15,7 @@ class Activity {
     required this.status,
     required this.repeatRule,
     this.notes = '',
+    this.repeatWeekdays = const [],
   });
 
   final String id;
@@ -26,6 +27,9 @@ class Activity {
   final ActivityStatus status;
   final RepeatRule repeatRule;
   final String notes;
+  final List<int> repeatWeekdays;
+
+  DateTime get endAt => startAt.add(Duration(minutes: durationMinutes));
 
   Activity copyWith({
     String? title,
@@ -36,6 +40,7 @@ class Activity {
     ActivityStatus? status,
     RepeatRule? repeatRule,
     String? notes,
+    List<int>? repeatWeekdays,
   }) {
     return Activity(
       id: id,
@@ -47,6 +52,7 @@ class Activity {
       status: status ?? this.status,
       repeatRule: repeatRule ?? this.repeatRule,
       notes: notes ?? this.notes,
+      repeatWeekdays: repeatWeekdays ?? this.repeatWeekdays,
     );
   }
 
@@ -60,19 +66,34 @@ class Activity {
     'status': status.name,
     'repeatRule': repeatRule.name,
     'notes': notes,
+    'repeatWeekdays': repeatWeekdays,
   };
 
-  factory Activity.fromJson(Map<String, dynamic> json) => Activity(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    startAt: DateTime.parse(json['startAt'] as String),
-    durationMinutes: json['durationMinutes'] as int,
-    category: json['category'] as String,
-    reminderMinutes: json['reminderMinutes'] as int,
-    status: ActivityStatus.values.byName(json['status'] as String),
-    repeatRule: RepeatRule.values.byName(json['repeatRule'] as String),
-    notes: json['notes'] as String? ?? '',
-  );
+  factory Activity.fromJson(Map<String, dynamic> json) {
+    final weekdays =
+        (json['repeatWeekdays'] as List<dynamic>?)
+            ?.whereType<num>()
+            .map((value) => value.toInt())
+            .where(
+              (value) => value >= DateTime.monday && value <= DateTime.sunday,
+            )
+            .toSet()
+            .toList() ??
+        <int>[];
+    weekdays.sort();
+    return Activity(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      startAt: DateTime.parse(json['startAt'] as String),
+      durationMinutes: json['durationMinutes'] as int,
+      category: json['category'] as String,
+      reminderMinutes: json['reminderMinutes'] as int,
+      status: ActivityStatus.values.byName(json['status'] as String),
+      repeatRule: RepeatRule.values.byName(json['repeatRule'] as String),
+      notes: json['notes'] as String? ?? '',
+      repeatWeekdays: weekdays,
+    );
+  }
 
   static String encodeList(List<Activity> items) =>
       jsonEncode(items.map((item) => item.toJson()).toList());
