@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "tested": [
+    "dashboard",
+    "form tambah kegiatan",
+    "simpan offline",
+    "status selesai",
+    "progress summary",
+    "kalender",
+    "halaman progres",
+    "pengaturan"
+  ],
+  "browserErrors": [],
+  "viewport": "390x844"
+}

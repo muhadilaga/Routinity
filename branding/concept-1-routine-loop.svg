@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Routinity — Routine Loop</title>
+  <desc>Rounded R monogram formed by a recurring loop and completion check.</desc>
+  <rect width="1024" height="1024" rx="230" fill="#6750A4"/>
+  <path d="M330 742V322c0-39 31-70 70-70h151c139 0 238 85 238 207 0 86-48 153-123 186l111 98c29 26 31 70 5 99-26 29-70 31-99 5L520 702v40c0 53-43 96-96 96h-2c-51 0-92-43-92-96Z" fill="#FFFFFF"/>
+  <path d="M520 399v135h42c55 0 91-26 91-68 0-41-36-67-91-67h-42Z" fill="#6750A4"/>
+  <path d="M454 657l67 67 138-151" fill="none" stroke="#D7C7FF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M284 348c-49 40-79 100-79 167 0 44 13 85 35 119" fill="none" stroke="#D7C7FF" stroke-width="42" stroke-linecap="round"/>
+  <path d="M204 329l99-22-17 100" fill="#D7C7FF"/>
+</svg>

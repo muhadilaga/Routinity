@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Routinity — Clock Check</title>
+  <desc>Abstract clock ring with R stem and integrated completion check.</desc>
+  <rect width="1024" height="1024" rx="230" fill="#211F26"/>
+  <circle cx="512" cy="504" r="278" fill="none" stroke="#D7C7FF" stroke-width="72" stroke-linecap="round" stroke-dasharray="1480 270" transform="rotate(-45 512 504)"/>
+  <path d="M400 716V372c0-31 25-56 56-56h93c100 0 173 62 173 151 0 67-41 119-105 141l99 91" fill="none" stroke="#FFFFFF" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M472 390v145h67c64 0 105-27 105-72 0-46-41-73-105-73h-67Z" fill="#211F26"/>
+  <path d="M372 570l106 105 209-226" fill="none" stroke="#FFFFFF" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="512" cy="225" r="22" fill="#FFFFFF"/>
+</svg>

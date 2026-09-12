@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "206515080312",
+    "project_id": "routinity-app-adi",
+    "storage_bucket": "routinity-app-adi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:206515080312:android:525a6a2a2077f1a7dcf18d",
+        "android_client_info": {
+          "package_name": "id.routinity.routinity"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "206515080312-6fktumk391ivaq1javrnv1qimnbbmql1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.routinity.routinity",
+            "certificate_hash": "fc4c93ad423541f213776b0879c850d36f508a74"
+          }
+        },
+        {
+          "client_id": "206515080312-f1qhqss2bq6cjab3d1cbgopoleotgdsf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI64lRI-5sYyqxXp_UXErfZwEr3A9Unxg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "206515080312-f1qhqss2bq6cjab3d1cbgopoleotgdsf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

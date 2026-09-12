@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Routinity — Flow R</title>
+  <desc>Continuous ribbon creates an R, routine loop, and upward progress tick.</desc>
+  <rect width="1024" height="1024" rx="230" fill="#F2EDFF"/>
+  <path d="M340 760V349c0-46 37-83 83-83h126c131 0 225 77 225 187 0 106-88 180-213 186H414" fill="none" stroke="#6750A4" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M419 492h125c45 0 75-18 75-48 0-31-30-49-75-49H419" fill="none" stroke="#8B74C8" stroke-width="67" stroke-linecap="round"/>
+  <path d="M530 636l151 135" fill="none" stroke="#6750A4" stroke-width="92" stroke-linecap="round"/>
+  <path d="M495 697l72 72 161-176" fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="343" cy="760" r="46" fill="#D7C7FF"/>
+</svg>
