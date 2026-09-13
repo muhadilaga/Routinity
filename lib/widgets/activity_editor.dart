@@ -28,7 +28,7 @@ Future<void> showActivityEditor(
   var date = activity?.startAt ?? DateTime.now();
   var time = TimeOfDay.fromDateTime(activity?.startAt ?? DateTime.now());
   var duration = activity?.durationMinutes ?? 30;
-  var reminder = activity?.reminderMinutes ?? 10;
+  var reminder = activity?.reminderMinutes ?? 0;
   var category = activity?.category ?? 'Pribadi';
   var repeat = activity?.repeatRule ?? RepeatRule.none;
   var weekdays = <int>{...?activity?.repeatWeekdays};
@@ -70,10 +70,7 @@ Future<void> showActivityEditor(
                 controller: title,
                 autofocus: !editing,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Nama kegiatan',
-                  hintText: 'Contoh: Belajar Flutter',
-                ),
+                decoration: const InputDecoration(labelText: 'Nama kegiatan'),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -169,7 +166,7 @@ Future<void> showActivityEditor(
                     )
                     .toList(),
                 onChanged: (value) =>
-                    setSheetState(() => reminder = value ?? 10),
+                    setSheetState(() => reminder = value ?? 0),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<RepeatRule>(

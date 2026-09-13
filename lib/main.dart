@@ -839,7 +839,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const ListTile(
               leading: Icon(Icons.info_outline),
               title: Text('Tentang Routinity'),
-              subtitle: Text('Versi 1.1.1'),
+              subtitle: Text('Versi 1.1.2'),
             ),
           ],
         ),
