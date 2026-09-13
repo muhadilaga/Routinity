@@ -31,6 +31,7 @@ Future<void> showActivityEditor(
   var reminder = activity?.reminderMinutes ?? 0;
   var category = activity?.category ?? 'Pribadi';
   var repeat = activity?.repeatRule ?? RepeatRule.none;
+  var reminderMode = activity?.reminderMode ?? ReminderMode.normal;
   var weekdays = <int>{...?activity?.repeatWeekdays};
 
   await showModalBottomSheet<void>(
@@ -169,6 +170,29 @@ Future<void> showActivityEditor(
                     setSheetState(() => reminder = value ?? 0),
               ),
               const SizedBox(height: 12),
+              DropdownButtonFormField<ReminderMode>(
+                isExpanded: true,
+                initialValue: reminderMode,
+                decoration: const InputDecoration(labelText: 'Jenis pengingat'),
+                items: const [
+                  DropdownMenuItem(
+                    value: ReminderMode.once,
+                    child: Text('Sekali'),
+                  ),
+                  DropdownMenuItem(
+                    value: ReminderMode.normal,
+                    child: Text('Normal — 2 pengingat'),
+                  ),
+                  DropdownMenuItem(
+                    value: ReminderMode.persistent,
+                    child: Text('Berulang — 4 pengingat'),
+                  ),
+                ],
+                onChanged: (value) => setSheetState(
+                  () => reminderMode = value ?? ReminderMode.normal,
+                ),
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<RepeatRule>(
                 initialValue: repeat,
                 decoration: const InputDecoration(labelText: 'Ulangi'),
@@ -268,7 +292,32 @@ Future<void> showActivityEditor(
                     repeatWeekdays: repeat == RepeatRule.selectedDays
                         ? (weekdays.toList()..sort())
                         : const [],
+                    reminderMode: reminderMode,
                   );
+                  final conflicts = store.conflictsFor(result);
+                  if (conflicts.isNotEmpty) {
+                    final proceed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Jadwal bertabrakan'),
+                        content: Text(
+                          'Waktu ini bertabrakan dengan ${conflicts.first.title}. Tetap simpan?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(dialogContext, false),
+                            child: const Text('Periksa lagi'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            child: const Text('Tetap simpan'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (proceed != true) return;
+                  }
                   if (editing) {
                     await store.update(result);
                   } else {

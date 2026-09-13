@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -18,6 +19,7 @@ Future<void> main() async {
   await notifications.initialize();
   final store = ActivityStore(notifications);
   await store.load();
+  notifications.onResponse = store.handleNotificationResponse;
   runApp(RoutinityApp(store: store, authService: FirebaseGoogleAuthService()));
 }
 
@@ -221,7 +223,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       SettingsPage(
         authService: widget.authService,
         session: widget.session,
-        notifications: widget.store.notifications,
+        store: widget.store,
       ),
     ];
     return Scaffold(
@@ -280,6 +282,9 @@ class TodayPage extends StatelessWidget {
           .where((item) => item.status == ActivityStatus.completed)
           .length;
       final progress = items.isEmpty ? 0.0 : completed / items.length;
+      final needsAttention = store.activities
+          .where((item) => item.status == ActivityStatus.missed)
+          .toList();
       return CustomScrollView(
         slivers: [
           SliverPadding(
@@ -305,6 +310,27 @@ class TodayPage extends StatelessWidget {
                     total: items.length,
                     progress: progress,
                   ),
+                  if (needsAttention.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Card(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.notification_important_outlined,
+                        ),
+                        title: Text(
+                          '${needsAttention.length} kegiatan perlu perhatian',
+                        ),
+                        subtitle: const Text(
+                          'Selesaikan, lewati, atau jadwalkan ulang.',
+                        ),
+                        trailing: TextButton(
+                          onPressed: () => store.skipAll(needsAttention),
+                          child: const Text('Lewati semua'),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   Text(
                     'Jadwalmu',
@@ -597,6 +623,37 @@ class ProgressPage extends StatelessWidget {
       final missed = store.activities
           .where((e) => e.status == ActivityStatus.missed)
           .length;
+      final now = DateTime.now();
+      final weekStart = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 6));
+      final weekly = store.activities
+          .where((item) => !item.startAt.isBefore(weekStart))
+          .toList();
+      final weeklyDone = weekly
+          .where((item) => item.status == ActivityStatus.completed)
+          .length;
+      final categories = <String, List<Activity>>{};
+      for (final item in weekly) {
+        categories.putIfAbsent(item.category, () => []).add(item);
+      }
+      var streak = 0;
+      for (var offset = 0; offset < 365; offset++) {
+        final day = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(Duration(days: offset));
+        final active = store.activities.any(
+          (item) =>
+              item.status == ActivityStatus.completed &&
+              _sameDay(item.startAt, day),
+        );
+        if (!active) break;
+        streak++;
+      }
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
         children: [
@@ -646,6 +703,51 @@ class ProgressPage extends StatelessWidget {
             icon: Icons.insights,
             color: AppTheme.primary,
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _Metric(
+                  label: '7 hari',
+                  value: weekly.isEmpty
+                      ? '0%'
+                      : '${(weeklyDone / weekly.length * 100).round()}%',
+                  icon: Icons.calendar_view_week_outlined,
+                  color: AppTheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Metric(
+                  label: 'Streak',
+                  value: '$streak hari',
+                  icon: Icons.local_fire_department_outlined,
+                  color: Colors.deepOrange,
+                ),
+              ),
+            ],
+          ),
+          if (categories.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'Penyelesaian per kategori (7 hari)',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            ...categories.entries.map((entry) {
+              final categoryDone = entry.value
+                  .where((item) => item.status == ActivityStatus.completed)
+                  .length;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(entry.key),
+                trailing: Text(
+                  '${(categoryDone / entry.value.length * 100).round()}%',
+                ),
+              );
+            }),
+          ],
         ],
       );
     },
@@ -687,11 +789,12 @@ class SettingsPage extends StatefulWidget {
     super.key,
     required this.authService,
     required this.session,
-    required this.notifications,
+    required this.store,
   });
   final AuthService authService;
   final AuthSession session;
-  final NotificationService notifications;
+  final ActivityStore store;
+  NotificationService get notifications => store.notifications;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -737,6 +840,52 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (error) {
       _message('Tes gagal: $error');
     }
+  }
+
+  Future<void> _showBackup() async {
+    final controller = TextEditingController(text: widget.store.exportJson());
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cadangan lokal'),
+        content: SizedBox(
+          width: 520,
+          child: TextField(
+            key: const Key('backupDataField'),
+            controller: controller,
+            minLines: 6,
+            maxLines: 12,
+            decoration: const InputDecoration(
+              labelText: 'Data cadangan JSON',
+              helperText: 'Salin untuk ekspor, atau tempel data lalu impor.',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: controller.text));
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              _message('Cadangan disalin ke clipboard.');
+            },
+            child: const Text('Salin'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                final count = await widget.store.importJson(controller.text);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                _message('$count kegiatan berhasil diimpor.');
+              } catch (_) {
+                _message('Impor dibatalkan: data cadangan tidak valid.');
+              }
+            },
+            child: const Text('Impor & gabungkan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
   }
 
   void _message(String text) {
@@ -827,7 +976,7 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: const Icon(Icons.send_outlined),
               title: const Text('Kirim notifikasi tes'),
               subtitle: Text(
-                '${_status?.pendingCount ?? 0} pengingat tersimpan di Android',
+                '${_status?.pendingCount ?? 0} tahap pengingat tersimpan di Android',
               ),
               onTap: _testNotification,
             ),
@@ -840,16 +989,19 @@ class _SettingsPageState extends State<SettingsPage> {
               onTap: () => widget.notifications.openNotificationSettings(),
             ),
             const Divider(height: 1),
-            const ListTile(
-              leading: Icon(Icons.storage_outlined),
-              title: Text('Penyimpanan'),
-              subtitle: Text('Offline di perangkat ini'),
+            ListTile(
+              key: const Key('localBackupButton'),
+              leading: const Icon(Icons.storage_outlined),
+              title: const Text('Cadangan lokal'),
+              subtitle: const Text('Ekspor atau impor data JSON dengan aman'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _showBackup,
             ),
             const Divider(height: 1),
             const ListTile(
               leading: Icon(Icons.info_outline),
               title: Text('Tentang Routinity'),
-              subtitle: Text('Versi 1.1.3'),
+              subtitle: Text('Versi 1.2.0'),
             ),
           ],
         ),

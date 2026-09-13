@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/activity.dart';
@@ -15,6 +16,13 @@ class ActivityStore extends ChangeNotifier {
   final List<Activity> _activities = [];
 
   List<Activity> get activities => List.unmodifiable(_activities);
+  List<Activity> conflictsFor(Activity candidate) => _activities.where((item) {
+    if (item.id == candidate.id || item.status != ActivityStatus.scheduled) {
+      return false;
+    }
+    return candidate.startAt.isBefore(item.endAt) &&
+        candidate.endAt.isAfter(item.startAt);
+  }).toList();
   NotificationService get notifications => _notifications;
   String? _lastReminderMessage;
   bool _lastReminderScheduled = true;
@@ -66,6 +74,63 @@ class ActivityStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  String exportJson() => Activity.encodeList(_activities);
+
+  Future<int> importJson(String value, {bool merge = true}) async {
+    final incoming = Activity.decodeList(value);
+    final ids = <String>{};
+    for (final item in incoming) {
+      if (item.id.trim().isEmpty ||
+          item.title.trim().isEmpty ||
+          !ids.add(item.id)) {
+        throw const FormatException(
+          'Data cadangan tidak valid atau memiliki ID ganda.',
+        );
+      }
+    }
+    final next = merge ? [..._activities] : <Activity>[];
+    for (final item in incoming) {
+      final index = next.indexWhere((existing) => existing.id == item.id);
+      if (index >= 0) {
+        next[index] = item;
+      } else {
+        next.add(item);
+      }
+    }
+    // Persistensikan hasil tervalidasi lebih dahulu. Jika penulisan gagal,
+    // daftar aktif dan notifikasinya tidak diubah.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_storageKey, Activity.encodeList(next));
+    for (final old in _activities) {
+      await _cancelSafely(old.id);
+    }
+    _activities
+      ..clear()
+      ..addAll(next);
+    for (final item in _activities.where(
+      (entry) => entry.status == ActivityStatus.scheduled,
+    )) {
+      await _scheduleSafely(item);
+    }
+    notifyListeners();
+    return incoming.length;
+  }
+
+  Future<void> handleNotificationResponse(NotificationResponse response) async {
+    final id = response.payload;
+    if (id == null) return;
+    final index = _activities.indexWhere((item) => item.id == id);
+    if (index < 0) return;
+    final item = _activities[index];
+    if (response.actionId == notificationActionDone) {
+      await updateStatus(item, ActivityStatus.completed);
+    } else if (response.actionId == notificationActionSkip) {
+      await updateStatus(item, ActivityStatus.skipped);
+    } else if (response.actionId == notificationActionSnooze) {
+      await snooze(item, const Duration(minutes: 10));
+    }
+  }
+
   Future<void> add(Activity activity) async {
     _activities.add(activity);
     await _persist();
@@ -99,6 +164,12 @@ class ActivityStore extends ChangeNotifier {
     }
     await _persist();
     notifyListeners();
+  }
+
+  Future<void> skipAll(Iterable<Activity> activities) async {
+    for (final activity in activities.toList()) {
+      await updateStatus(activity, ActivityStatus.skipped);
+    }
   }
 
   Future<void> snooze(Activity activity, Duration duration) async {

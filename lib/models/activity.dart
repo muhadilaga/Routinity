@@ -4,6 +4,8 @@ enum ActivityStatus { scheduled, completed, skipped, missed }
 
 enum RepeatRule { none, daily, weekdays, weekly, selectedDays }
 
+enum ReminderMode { once, normal, persistent }
+
 class Activity {
   const Activity({
     required this.id,
@@ -16,6 +18,7 @@ class Activity {
     required this.repeatRule,
     this.notes = '',
     this.repeatWeekdays = const [],
+    this.reminderMode = ReminderMode.normal,
   });
 
   final String id;
@@ -28,6 +31,7 @@ class Activity {
   final RepeatRule repeatRule;
   final String notes;
   final List<int> repeatWeekdays;
+  final ReminderMode reminderMode;
 
   DateTime get endAt => startAt.add(Duration(minutes: durationMinutes));
 
@@ -41,6 +45,7 @@ class Activity {
     RepeatRule? repeatRule,
     String? notes,
     List<int>? repeatWeekdays,
+    ReminderMode? reminderMode,
   }) {
     return Activity(
       id: id,
@@ -53,6 +58,7 @@ class Activity {
       repeatRule: repeatRule ?? this.repeatRule,
       notes: notes ?? this.notes,
       repeatWeekdays: repeatWeekdays ?? this.repeatWeekdays,
+      reminderMode: reminderMode ?? this.reminderMode,
     );
   }
 
@@ -67,6 +73,7 @@ class Activity {
     'repeatRule': repeatRule.name,
     'notes': notes,
     'repeatWeekdays': repeatWeekdays,
+    'reminderMode': reminderMode.name,
   };
 
   factory Activity.fromJson(Map<String, dynamic> json) {
@@ -92,6 +99,10 @@ class Activity {
       repeatRule: RepeatRule.values.byName(json['repeatRule'] as String),
       notes: json['notes'] as String? ?? '',
       repeatWeekdays: weekdays,
+      reminderMode: ReminderMode.values.firstWhere(
+        (value) => value.name == json['reminderMode'],
+        orElse: () => ReminderMode.normal,
+      ),
     );
   }
 
