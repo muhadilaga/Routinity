@@ -218,7 +218,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       TodayPage(store: widget.store),
       CalendarPage(store: widget.store),
       ProgressPage(store: widget.store),
-      SettingsPage(authService: widget.authService, session: widget.session),
+      SettingsPage(
+        authService: widget.authService,
+        session: widget.session,
+        notifications: widget.store.notifications,
+      ),
     ];
     return Scaffold(
       body: SafeArea(child: pages[_index]),
@@ -676,14 +680,68 @@ class _Metric extends StatelessWidget {
   );
 }
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     required this.authService,
     required this.session,
+    required this.notifications,
   });
   final AuthService authService;
   final AuthSession session;
+  final NotificationService notifications;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  NotificationPermissionStatus? _status;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final value = await widget.notifications.getStatus();
+      if (mounted) setState(() => _status = value);
+    } catch (_) {
+      // Plugin native tidak tersedia pada widget test dan platform non-Android.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _requestPermissions() async {
+    setState(() => _loading = true);
+    try {
+      final value = await widget.notifications.requestPermissions();
+      if (mounted) setState(() => _status = value);
+    } catch (error) {
+      _message('Tidak dapat membuka izin: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _testNotification() async {
+    try {
+      await widget.notifications.showTestNotification();
+      _message('Notifikasi tes sudah dikirim. Periksa panel notifikasi HP.');
+    } catch (error) {
+      _message('Tes gagal: $error');
+    }
+  }
+
+  void _message(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
@@ -700,19 +758,21 @@ class SettingsPage extends StatelessWidget {
             ListTile(
               leading: CircleAvatar(
                 child: Text(
-                  (session.displayName ?? session.email ?? 'G').characters.first
+                  (widget.session.displayName ?? widget.session.email ?? 'G')
+                      .characters
+                      .first
                       .toUpperCase(),
                 ),
               ),
-              title: Text(session.displayName ?? 'Akun Google'),
-              subtitle: Text(session.email ?? ''),
+              title: Text(widget.session.displayName ?? 'Akun Google'),
+              subtitle: Text(widget.session.email ?? ''),
             ),
             const Divider(height: 1),
             ListTile(
               key: const Key('signOutButton'),
               leading: const Icon(Icons.logout_rounded),
               title: const Text('Keluar dari akun'),
-              onTap: () => authService.signOut(),
+              onTap: () => widget.authService.signOut(),
             ),
           ],
         ),
@@ -720,23 +780,66 @@ class SettingsPage extends StatelessWidget {
       const SizedBox(height: 14),
       Card(
         child: Column(
-          children: const [
+          children: [
             ListTile(
-              leading: Icon(Icons.notifications_active_outlined),
-              title: Text('Notifikasi & alarm'),
-              subtitle: Text('Diaktifkan melalui izin perangkat'),
+              key: const Key('notificationPermissionTile'),
+              leading: Icon(
+                _status?.notificationsEnabled == true
+                    ? Icons.notifications_active
+                    : Icons.notifications_off_outlined,
+              ),
+              title: const Text('Izin notifikasi'),
+              subtitle: Text(
+                _loading
+                    ? 'Memeriksa status…'
+                    : _status?.notificationsEnabled == true
+                    ? 'Aktif'
+                    : 'Belum aktif — ketuk untuk mengizinkan',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _loading ? null : _requestPermissions,
             ),
-            Divider(height: 1),
+            const Divider(height: 1),
             ListTile(
+              leading: const Icon(Icons.alarm_on_outlined),
+              title: const Text('Alarm presisi'),
+              subtitle: Text(
+                _status?.exactAlarmsEnabled == true
+                    ? 'Aktif — pengingat tepat waktu'
+                    : 'Tidak aktif — memakai pengingat fleksibel',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _requestPermissions,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              key: const Key('testNotificationButton'),
+              leading: const Icon(Icons.send_outlined),
+              title: const Text('Kirim notifikasi tes'),
+              subtitle: Text(
+                '${_status?.pendingCount ?? 0} pengingat tersimpan di Android',
+              ),
+              onTap: _testNotification,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.tune_outlined),
+              title: const Text('Pengaturan notifikasi Android'),
+              subtitle: const Text('Atur suara, getaran, dan tampilan'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => widget.notifications.openNotificationSettings(),
+            ),
+            const Divider(height: 1),
+            const ListTile(
               leading: Icon(Icons.storage_outlined),
               title: Text('Penyimpanan'),
               subtitle: Text('Offline di perangkat ini'),
             ),
-            Divider(height: 1),
-            ListTile(
+            const Divider(height: 1),
+            const ListTile(
               leading: Icon(Icons.info_outline),
               title: Text('Tentang Routinity'),
-              subtitle: Text('Versi 1.1.0'),
+              subtitle: Text('Versi 1.1.1'),
             ),
           ],
         ),

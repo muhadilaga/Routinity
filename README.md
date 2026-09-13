@@ -8,6 +8,9 @@ Routinity adalah aplikasi Flutter untuk mengelola jadwal dan rutinitas harian. A
 - Tambah, edit, jadwalkan ulang, dan hapus kegiatan
 - Rutinitas berulang harian, hari kerja, mingguan, atau hari pilihan
 - Reminder, alarm, dan notifikasi lokal
+- Pengaturan notifikasi dengan status izin, alarm presisi, jumlah pengingat,
+  tombol tes, dan akses langsung ke pengaturan Android
+- Fallback pengingat fleksibel ketika exact alarm belum diizinkan Android
 - Status kegiatan: dijadwalkan, selesai, dilewati, atau terlewat otomatis
 - Kalender dan ringkasan progres
 - Penyimpanan local-first/offline

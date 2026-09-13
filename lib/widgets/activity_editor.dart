@@ -241,6 +241,19 @@ Future<void> showActivityEditor(
                     time.hour,
                     time.minute,
                   );
+                  final reminderAt = start.subtract(
+                    Duration(minutes: reminder),
+                  );
+                  if (!reminderAt.isAfter(DateTime.now())) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Waktu pengingat sudah lewat. Pilih jadwal lebih jauh atau ubah pengingat.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
                   final result = Activity(
                     id:
                         activity?.id ??
@@ -264,7 +277,20 @@ Future<void> showActivityEditor(
                   } else {
                     await store.add(result);
                   }
-                  if (context.mounted) Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    final message = store.lastReminderMessage;
+                    if (message != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(message),
+                          backgroundColor: store.lastReminderScheduled
+                              ? null
+                              : Theme.of(context).colorScheme.error,
+                        ),
+                      );
+                    }
+                  }
                 },
                 icon: Icon(editing ? Icons.save_outlined : Icons.alarm_add),
                 label: Padding(

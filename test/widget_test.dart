@@ -76,4 +76,25 @@ void main() {
     expect(find.byKey(const Key('googleSignInButton')), findsOneWidget);
     expect(find.byKey(const Key('addActivityButton')), findsNothing);
   });
+
+  testWidgets('halaman pengaturan menampilkan kontrol notifikasi', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = ActivityStore(NotificationService());
+    await store.load();
+    await initializeDateFormatting('id_ID');
+
+    await tester.pumpWidget(
+      RoutinityApp(store: store, authService: _TestAuthService(_TestSession())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Pengaturan'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('notificationPermissionTile')), findsOneWidget);
+    expect(find.byKey(const Key('testNotificationButton')), findsOneWidget);
+    expect(find.text('Pengaturan notifikasi Android'), findsOneWidget);
+  });
 }

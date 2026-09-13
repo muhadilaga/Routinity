@@ -15,6 +15,11 @@ class ActivityStore extends ChangeNotifier {
   final List<Activity> _activities = [];
 
   List<Activity> get activities => List.unmodifiable(_activities);
+  NotificationService get notifications => _notifications;
+  String? _lastReminderMessage;
+  bool _lastReminderScheduled = true;
+  String? get lastReminderMessage => _lastReminderMessage;
+  bool get lastReminderScheduled => _lastReminderScheduled;
 
   Future<void> refreshStatuses() async {
     final before = Activity.encodeList(_activities);
@@ -135,11 +140,15 @@ class ActivityStore extends ChangeNotifier {
     bool immediateReminder = false,
   }) async {
     try {
-      await _notifications.schedule(
+      final result = await _notifications.schedule(
         activity,
         immediateReminder: immediateReminder,
       );
+      _lastReminderScheduled = result.scheduled;
+      _lastReminderMessage = result.message;
     } catch (error) {
+      _lastReminderScheduled = false;
+      _lastReminderMessage = 'Pengingat gagal dijadwalkan: $error';
       debugPrint('Pengingat tidak dapat dijadwalkan: $error');
     }
   }
