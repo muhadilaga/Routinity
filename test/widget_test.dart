@@ -17,6 +17,15 @@ class _TestSession implements AuthSession {
   String? get photoUrl => null;
 }
 
+class _EmptyProfileSession implements AuthSession {
+  @override
+  String? get displayName => '';
+  @override
+  String? get email => '';
+  @override
+  String? get photoUrl => null;
+}
+
 class _TestAuthService implements AuthService {
   _TestAuthService(this.session);
   final AuthSession? session;
@@ -96,5 +105,29 @@ void main() {
     expect(find.byKey(const Key('notificationPermissionTile')), findsOneWidget);
     expect(find.byKey(const Key('testNotificationButton')), findsOneWidget);
     expect(find.text('Pengaturan notifikasi Android'), findsOneWidget);
+  });
+
+  testWidgets('pengaturan tetap tampil saat profil Google kosong', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = ActivityStore(NotificationService());
+    await store.load();
+    await initializeDateFormatting('id_ID');
+
+    await tester.pumpWidget(
+      RoutinityApp(
+        store: store,
+        authService: _TestAuthService(_EmptyProfileSession()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pengaturan'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Akun Google'), findsOneWidget);
+    expect(find.byKey(const Key('notificationPermissionTile')), findsOneWidget);
+    expect(find.byKey(const Key('addActivityButton')), findsNothing);
   });
 }

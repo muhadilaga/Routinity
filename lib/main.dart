@@ -226,12 +226,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     ];
     return Scaffold(
       body: SafeArea(child: pages[_index]),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('addActivityButton'),
-        onPressed: () => showActivityEditor(context, widget.store),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Kegiatan'),
-      ),
+      floatingActionButton: _index == 3
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('addActivityButton'),
+              onPressed: () => showActivityEditor(context, widget.store),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Kegiatan'),
+            ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
@@ -742,6 +744,21 @@ class _SettingsPageState extends State<SettingsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  String get _accountTitle {
+    final name = widget.session.displayName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final email = widget.session.email?.trim();
+    if (email != null && email.isNotEmpty) return email;
+    return 'Akun Google';
+  }
+
+  String get _accountInitial {
+    final value = _accountTitle;
+    return value.characters.isEmpty
+        ? 'G'
+        : value.characters.first.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
@@ -756,16 +773,9 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             ListTile(
-              leading: CircleAvatar(
-                child: Text(
-                  (widget.session.displayName ?? widget.session.email ?? 'G')
-                      .characters
-                      .first
-                      .toUpperCase(),
-                ),
-              ),
-              title: Text(widget.session.displayName ?? 'Akun Google'),
-              subtitle: Text(widget.session.email ?? ''),
+              leading: CircleAvatar(child: Text(_accountInitial)),
+              title: Text(_accountTitle),
+              subtitle: Text(widget.session.email?.trim() ?? ''),
             ),
             const Divider(height: 1),
             ListTile(
@@ -839,7 +849,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const ListTile(
               leading: Icon(Icons.info_outline),
               title: Text('Tentang Routinity'),
-              subtitle: Text('Versi 1.1.2'),
+              subtitle: Text('Versi 1.1.3'),
             ),
           ],
         ),
